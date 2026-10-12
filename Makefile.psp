@@ -1,0 +1,21 @@
+TARGET = skate_demo
+OBJS = main.o render.o skate.o
+VPATH = ../../src
+INCDIR = ../../src
+CFLAGS = -O2 -G0 -Wall -Wextra -Werror -std=c99 -MMD -MP
+ifeq ($(SMOKE_TEST),1)
+CFLAGS += -DSKATE_SMOKE_TEST
+endif
+CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
+ASFLAGS = $(CFLAGS)
+LIBS = -lpspgum -lpspgu -lpsppower -lpsprtc -lm
+BUILD_PRX = 1
+PSP_FW_VERSION = 660
+PSP_LARGE_MEMORY = 0
+EXTRA_TARGETS = EBOOT.PBP
+PSP_EBOOT_TITLE = Skate Lab Prototype
+PSPSDK := $(shell psp-config --pspsdk-path)
+include $(PSPSDK)/lib/build.mak
+
+$(OBJS) PARAM.SFO: ../../Makefile.psp
+-include $(OBJS:.o=.d)
