@@ -1,39 +1,71 @@
-# Skate Lab for PSP
+# Sidewalk Sessions
 
-A small native PSP skateboarding prototype, created as a foundation for exploring
-a Tony Hawk's Underground port. **This is an original demo, not a port of THUG.**
-It contains no THUG engine, levels, characters, missions, music, or disc assets.
+An original arcade skateboarding game for PSP. Chase a personal record in a
+two-minute score run, explore in Free Skate, and complete five challenges in
+**Foundry Yard**, our first industrial skate park. Sidewalk Sessions is a working
+title; this is the first playable version.
 
-[Download the prebuilt PSP demo](https://github.com/CaptainHookJL/Tony-Hawk-Pro-Skater-PSP/raw/refs/heads/main/downloads/SkateLab-PSP.zip).
-Open its `EBOOT.PBP` in PPSSPP, or copy its `PSP/GAME/SkateLab` folder to a PSP
-configured to run homebrew. Controls and build instructions are below.
+[Download the PSP game](https://github.com/CaptainHookJL/Tony-Hawk-Pro-Skater-PSP/raw/refs/heads/main/downloads/SidewalkSessions-PSP.zip).
+Open `EBOOT.PBP` in PPSSPP, or copy the `PSP/GAME/SidewalkSessions` folder to a PSP
+configured to run homebrew.
 
-![Skate Lab prototype running in PPSSPP](docs/images/park.png)
+![Sidewalk Sessions title screen](docs/images/menu.png)
+![Foundry Yard gameplay](docs/images/park.png)
 
-The PS2 game files are not the game's source code. A complete port would require
-recovering or reconstructing the engine, understanding the asset formats, and
-adapting rendering, memory use, controls, audio, scripting, and game systems to
-the PSP. See [the porting roadmap](docs/PORTING.md) for that work.
+## Play
 
-## Prototype
+Choose **2 Minute Score Run** or **Free Skate** with Up/Down, then Cross or Start.
+Hold Cross to build speed and charge a pop, release to ollie, add tricks, and
+land cleanly to bank the combo. Bails lose unbanked points.
 
-- 3D test park, two launch ramps, a ledge, and a grind rail.
-- Chase camera and a simple animated skater and board.
-- Acceleration, braking, charged ollies, kickflips, grabs, spins, and rail grinds.
-- Combo scoring on landing, lost combos on a bail, pause, and respawn.
-- Fixed 120 Hz simulation; rendering waits for the PSP display's vertical blank.
-- PSP GU rendering with no texture or external asset dependencies.
-- Standard PSP user memory setting, including a PSP-1000 development target.
+Foundry Yard has two banks, a central grind rail, a solid loading platform, and
+five floating gold spot markers. Skate into a marker to collect it. Start opens
+the challenge card and pauses the clock. Complete all five challenges and score
+5,000 points in a timed run to earn Gold.
 
-This is a deliberately small gameplay experiment. It has no manuals, reverts,
-walking, objectives, saving, audio, or THUG-accurate physics. The ledge is a solid
-obstacle; only the central rail supports grinding.
+| Challenge | Target |
+| --- | --- |
+| Session score | 2,500 banked points |
+| Best combo | 1,000 points in one landed combo |
+| Kickflips | Land three completed flips |
+| Grinding | Land a cumulative second of grinding |
+| Spot markers | Collect all five |
 
-## Build in this cloud workspace
+Bronze requires 1,000 points. Silver requires 2,500 points and three challenges.
+At time up, an airborne or grinding combo has up to three seconds to land.
+An unfinished combo is discarded at the end of that window.
+
+Free Skate has no clock. End it from the pause card. The timed score record is
+reserved for Score Runs; both modes can improve your all-time combo record.
+Records are saved when a session ends in `sidewalk-records.dat` beside the game.
+A `.bak` file retains the previous save for recovery.
+
+## Controls
+
+| PSP control | While skating |
+| --- | --- |
+| Analog stick left/right, or D-pad left/right | Steer on the ground |
+| Hold Cross (X) | Push and charge an ollie |
+| Release Cross (X) | Ollie |
+| D-pad down | Brake |
+| Square | Kickflip while airborne |
+| Hold Circle | Indy grab while airborne |
+| Hold Triangle | Catch and remain on the central rail while descending |
+| L / R | Spin left / right while airborne |
+| Start | Pause/resume and view challenges |
+| Select | Respawn, keeping banked points and challenge progress |
+| Home | Exit |
+
+On the pause card, Triangle ends the session. On results, Cross retries;
+Circle or Start returns to the title screen. Finish flips and align spins to a
+multiple of 180 degrees before landing. From spawn, release Cross several board
+lengths before the rail, then hold Triangle as you descend onto it.
+
+## Build
 
 Use the existing checkout; each cloud task is already isolated and needs no Git
 worktree. The installer pins PSPDEV `v20261001` for Linux x86_64 and verifies the
-archive against the SHA-256 published on the official GitHub release page.
+official archive's SHA-256.
 
 ```bash
 cd /workspace/Tony-Hawk-Pro-Skater-PSP
@@ -43,66 +75,42 @@ make test
 make package -j4
 ```
 
-Toolchain files live outside the checkout in `/workspace/.tools`. Other platforms
-can install [PSPDEV](https://github.com/pspdev/pspdev/releases), set `PSPDEV`, and
-put `$PSPDEV/bin` on `PATH` before running `make package`. `make test` requires
-only a host C99 compiler and the standard math library, not the PSP SDK.
+Tooling lives outside the checkout in `/workspace/.tools`. Other platforms can
+install [PSPDEV](https://github.com/pspdev/pspdev/releases), set `PSPDEV`, and add
+`$PSPDEV/bin` to `PATH` before building. Host tests require a C99 compiler;
+Python 3 packages the build. The game has no external asset dependencies.
 
-The game is written to `dist/PSP/GAME/SkateLab/EBOOT.PBP` and bundled with
-instructions in `dist/SkateLab-PSP.zip`. Open the EBOOT file in
-[PPSSPP](https://www.ppsspp.org/), or copy the `SkateLab` folder to
-`PSP/GAME/` on a PSP configured to run homebrew. The ELF and PRX for debugging
+The interactive executable is `dist/PSP/GAME/SidewalkSessions/EBOOT.PBP`, with
+instructions bundled in `dist/SidewalkSessions-PSP.zip`. Debug ELF and PRX files
 are in `build/psp/`. `make clean` removes generated outputs.
 
-## Controls
+## Development and checks
 
-| PSP control | Action |
-| --- | --- |
-| Analog stick left/right, or D-pad left/right | Steer on the ground |
-| Hold Cross (X) | Push and charge an ollie |
-| Release Cross (X) | Ollie |
-| D-pad down | Brake on the ground |
-| Square | Kickflip while airborne; allow it to finish before landing |
-| Hold Circle | Indy grab while airborne |
-| Hold Triangle | Catch and remain on the central rail while descending |
-| L / R | Spin left / right while airborne |
-| Start | Pause / resume |
-| Select | Respawn, preserving banked score |
-| Home | Exit |
+`src/skate.c` handles movement, tricks, scoring, and landed-trick statistics.
+`src/session.c` handles modes, time, goals, spots, and results. `src/records.c`
+persists personal records. `src/render.c` draws the original park and interface;
+`src/main.c` handles PSP input, timing, and screen transitions.
 
-From spawn, hold X to skate toward the orange stripe. Release X near the start
-of the central rail (several board lengths early), then hold Triangle as you
-come down onto it. Steer toward
-either bank for ramp launches. Complete flips and align spins to a multiple of
-180 degrees before landing to bank the combo.
-
-## Development and validation
-
-`src/skate.c` implements portable movement and scoring. `src/render.c` renders
-the park with PSP GU/GUM. `src/main.c` handles PSP input, timing, and exit callbacks.
-
-`make test` exercises pushing, braking, ollies, successful and failed trick
-landings, combo banking, score preservation, rail catch/release, ramp launches,
-solid ledge collision, park bounds, and a deterministic five-minute session.
-These host checks do not validate rendering, audio, device controls, or frame rate.
-
-The PSP cross-build and host gameplay checks were completed in the cloud
-workspace. A separate PSP smoke build also completed 300 frames in headless
-PPSSPP, exercising a flip/grab/grind combo, pause/resume, and respawn. Its rendered
-park was captured and visually inspected. Real PSP hardware play testing is
-still required before making hardware compatibility or performance claims.
-
-To repeat the PSP integration check in this prepared workspace:
+`make test` checks movement and combos, challenge banking, pause/retry behavior,
+collectibles, medal progression, the full score-run deadline, overtime limits,
+Free Skate records, and save-file round trips and corruption handling.
 
 ```bash
 source scripts/env.sh
 make smoke
 ```
 
-The screenshot and emulator log are written to `build/emulator/`. The smoke
-target uses a separate build with scripted input; the packaged game retains
-normal controller input. If the headless emulator needs to be recreated in this
-Debian Linux x86_64 cloud machine, run `bash scripts/install-emulator.sh`. That
-helper builds a pinned PPSSPP revision from its official repository and keeps
-its dependencies outside this checkout. This can take several minutes on a
-fresh machine. No GUI or background service is required.
+The separate PSP smoke build runs scripted input for 300 frames in headless
+PPSSPP. It starts from the menu, performs and banks a flip/grab/grind combo,
+pauses/resumes, respawns, fast-forwards the clock to results, and verifies that
+records were saved and can be reloaded. Its test profile is separate from player
+records. The screenshot and log are in `build/emulator/`.
+
+If the emulator needs rebuilding in this Debian Linux x86_64 cloud machine,
+run `bash scripts/install-emulator.sh`. It builds a pinned PPSSPP revision
+outside the checkout; no GUI or background service is required.
+
+The cross-build, host checks, and PPSSPP integration have been validated in the
+cloud workspace. Real PSP hardware testing is pending. The game currently uses
+simple geometry and has no audio, manuals, reverts, or extra parks.
+See [the game design](docs/GAME_DESIGN.md) for the current scope and next milestones.

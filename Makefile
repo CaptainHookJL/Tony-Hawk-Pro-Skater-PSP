@@ -10,6 +10,8 @@ test:
 	mkdir -p build/host
 	$(CC) -std=c99 -O2 -Wall -Wextra -Werror -pedantic -Isrc tests/test_skate.c src/skate.c -lm -o build/host/test_skate
 	./build/host/test_skate
+	$(CC) -std=c99 -O2 -Wall -Wextra -Werror -pedantic -Isrc tests/test_session.c src/session.c src/records.c src/skate.c -lm -o build/host/test_session
+	./build/host/test_session
 
 smoke-build:
 	@command -v psp-config >/dev/null || { echo 'Source scripts/env.sh first'; exit 1; }
@@ -20,8 +22,8 @@ smoke: smoke-build
 	python3 scripts/smoke-test.py
 
 package: psp
-	mkdir -p dist/PSP/GAME/SkateLab
-	cp build/psp/EBOOT.PBP dist/PSP/GAME/SkateLab/EBOOT.PBP
+	mkdir -p dist/PSP/GAME/SidewalkSessions
+	cp build/psp/EBOOT.PBP dist/PSP/GAME/SidewalkSessions/EBOOT.PBP
 	python3 scripts/package.py
 
 clean:

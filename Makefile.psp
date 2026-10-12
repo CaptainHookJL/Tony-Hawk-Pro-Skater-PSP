@@ -1,5 +1,5 @@
-TARGET = skate_demo
-OBJS = main.o render.o skate.o
+TARGET = sidewalk_sessions
+OBJS = main.o render.o skate.o session.o records.o
 VPATH = ../../src
 INCDIR = ../../src
 CFLAGS = -O2 -G0 -Wall -Wextra -Werror -std=c99 -MMD -MP
@@ -13,7 +13,7 @@ BUILD_PRX = 1
 PSP_FW_VERSION = 660
 PSP_LARGE_MEMORY = 0
 EXTRA_TARGETS = EBOOT.PBP
-PSP_EBOOT_TITLE = Skate Lab Prototype
+PSP_EBOOT_TITLE = Sidewalk Sessions
 PSPSDK := $(shell psp-config --pspsdk-path)
 include $(PSPSDK)/lib/build.mak
 

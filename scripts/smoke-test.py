@@ -20,7 +20,7 @@ command = [
     str(emulator), "--graphics=software", "--log", "--timeout-wall=40",
     "--timeout-emulated=10", f"--memstick={outputs / 'memstick'}",
     f"--root={root}", f"--screenshot-save={picture}",
-    str(root / "build/psp-smoke/skate_demo.prx"),
+    str(root / "build/psp-smoke/sidewalk_sessions.prx"),
 ]
 try:
     run = subprocess.run(command, cwd=emulator.parent, capture_output=True,

@@ -1,6 +1,7 @@
 #include "render.h"
 #include <math.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <pspdebug.h>
 #include <pspdisplay.h>
 #include <pspgu.h>
@@ -19,6 +20,7 @@ static void *draw_buffer;
 static float camera_heading;
 static Vec camera;
 static int camera_ready;
+static float animation_time;
 
 static Vec vec(float x, float y, float z)
 {
@@ -83,7 +85,7 @@ static void park(void)
     Vertex *v = sceGuGetMemory(12 * 12 * 6 * sizeof(Vertex));
     for (x = -24; x < 24; x += 4) {
         for (z = -24; z < 24; z += 4) {
-            unsigned int c = ((x/4 + z/4) & 1) ? COLOR(73,91,105) : COLOR(80,99,113);
+            unsigned int c = ((x/4 + z/4) & 1) ? COLOR(91,109,116) : COLOR(98,117,123);
             Vec a = vec((float)x,0,(float)z), b = vec((float)x+4,0,(float)z);
             Vec d = vec((float)x,0,(float)z+4), e = vec((float)x+4,0,(float)z+4);
             v[n++] = vertex(a,c); v[n++] = vertex(b,c); v[n++] = vertex(e,c);
@@ -104,6 +106,40 @@ static void park(void)
     box(-0.04f,0,RAIL_END-0.6f,0.04f,RAIL_HEIGHT,RAIL_END-0.5f,COLOR(138,164,182));
     /* An orange stripe points from spawn toward the rail. */
     quad(vec(-0.12f,0.01f,-11),vec(0.12f,0.01f,-11),vec(0.12f,0.01f,-3),vec(-0.12f,0.01f,-3),COLOR(219,149,64));
+    /* Original industrial scenery beyond the playable boundary. */
+    box(-29,0,25,-7,7,32,COLOR(83,115,122));
+    box(7,0,25,29,5,32,COLOR(183,126,91));
+    box(-29,7,25,-7,7.25f,32,COLOR(41,62,72));
+    box(7,5,25,29,5.25f,32,COLOR(64,78,85));
+    box(-20,7,27,-19,12,28,COLOR(101,115,119));
+    box(-30,0,-18,-25,4,15,COLOR(62,91,104));
+    box(25,0,-18,30,3,15,COLOR(69,130,120));
+    for (x=-26;x<-8;x+=4)
+        box((float)x,3.2f,24.92f,(float)x+2.2f,5.2f,25,COLOR(166,204,202));
+    for (x=10;x<27;x+=4)
+        box((float)x,2.0f,24.92f,(float)x+2.2f,3.8f,25,COLOR(229,194,151));
+    for (z=-16;z<14;z+=3) {
+        box(24.9f,0.1f,(float)z,25.1f,2.9f,(float)z+0.1f,COLOR(45,97,92));
+        box(-25.1f,0.1f,(float)z,-24.9f,3.9f,(float)z+0.1f,COLOR(46,68,83));
+    }
+}
+
+static void spots(const SkateSession *game)
+{
+    int i;
+    for (i=0;i<SPOT_COUNT;i++) {
+        float x,y,z,r = 0.38f;
+        Vec top,bottom,a,b,c,d;
+        if (game->spots & (1u << i)) continue;
+        session_spot(i,&x,&y,&z);
+        y += sinf(animation_time*2.2f+(float)i)*0.12f;
+        top = vec(x,y+0.5f,z); bottom = vec(x,y-0.5f,z);
+        a=vec(x-r,y,z); b=vec(x,y,z+r); c=vec(x+r,y,z); d=vec(x,y,z-r);
+        triangle(top,a,b,COLOR(255,221,103)); triangle(top,b,c,COLOR(244,178,71));
+        triangle(top,c,d,COLOR(255,221,103)); triangle(top,d,a,COLOR(244,178,71));
+        triangle(bottom,a,b,COLOR(186,123,51)); triangle(bottom,b,c,COLOR(210,148,55));
+        triangle(bottom,c,d,COLOR(186,123,51)); triangle(bottom,d,a,COLOR(210,148,55));
+    }
 }
 
 static void skater(const Skater *s)
@@ -134,12 +170,127 @@ static void skater(const Skater *s)
     sceGumPopMatrix();
 }
 
-static void panel(float y0, float y1)
+static void rectangle(float x0, float y0, float x1, float y1, unsigned int color)
 {
     Vertex *v = sceGuGetMemory(2*sizeof(Vertex));
-    v[0] = vertex(vec(0,y0,0),COLOR(20,29,42));
-    v[1] = vertex(vec(WIDTH,y1,0),COLOR(20,29,42));
+    v[0] = vertex(vec(x0,y0,0),color);
+    v[1] = vertex(vec(x1,y1,0),color);
     sceGuDrawArray(GU_SPRITES,GU_COLOR_8888 | GU_VERTEX_32BITF | GU_TRANSFORM_2D,2,0,v);
+}
+
+static void panel(float y0, float y1)
+{
+    rectangle(0,y0,WIDTH,y1,COLOR(18,32,42));
+}
+
+/* A compact original bitmap alphabet for the game logo and award headings. */
+static void heading(const char *text, float x, float y, int scale, unsigned int color)
+{
+    static const unsigned char letters[26][7] = {
+        {14,17,17,31,17,17,17},{30,17,17,30,17,17,30},{14,17,16,16,16,17,14},
+        {30,17,17,17,17,17,30},{31,16,16,30,16,16,31},{31,16,16,30,16,16,16},
+        {14,17,16,23,17,17,15},{17,17,17,31,17,17,17},{31,4,4,4,4,4,31},
+        {7,2,2,2,18,18,12},{17,18,20,24,20,18,17},{16,16,16,16,16,16,31},
+        {17,27,21,21,17,17,17},{17,25,21,19,17,17,17},{14,17,17,17,17,17,14},
+        {30,17,17,30,16,16,16},{14,17,17,17,21,18,13},{30,17,17,30,20,18,17},
+        {15,16,16,14,1,1,30},{31,4,4,4,4,4,4},{17,17,17,17,17,17,14},
+        {17,17,17,17,17,10,4},{17,17,17,21,21,21,10},{17,17,10,4,10,17,17},
+        {17,17,10,4,4,4,4},{31,1,2,4,8,16,31}
+    };
+    while (*text) {
+        int row,column;
+        char letter = *text++;
+        if (letter >= 'A' && letter <= 'Z')
+            for (row=0;row<7;row++) for (column=0;column<5;column++)
+                if (letters[letter-'A'][row] & (1u << (4-column)))
+                    rectangle(x+column*scale,y+row*scale,x+(column+1)*scale,y+(row+1)*scale,color);
+        x += 6*scale;
+    }
+}
+
+static void text_at(int x, int y, unsigned int color, const char *text)
+{
+    pspDebugScreenSetTextColor(color);
+    pspDebugScreenSetXY(x,y);
+    pspDebugScreenPrintf("%s",text);
+}
+
+static void overlay(const SkateSession *g, int menu_selection)
+{
+    unsigned int ink = COLOR(241,244,234), mint = COLOR(98,216,181), gold = COLOR(255,204,100);
+    if (g->state == GAME_MENU) {
+        rectangle(15,46,303,229,COLOR(18,32,42));
+        rectangle(15,46,19,229,mint);
+        heading("SIDEWALK",29,57,4,ink);
+        heading("SESSIONS",29,93,4,mint);
+        rectangle(25,menu_selection ? 157 : 133,287,menu_selection ? 173 : 149,COLOR(48,83,88));
+    } else if (g->state == GAME_RESULTS) {
+        rectangle(43,57,437,232,COLOR(18,32,42));
+        rectangle(43,57,437,61,mint);
+        heading(g->mode == MODE_FREE ? "FREE SKATE" : session_rank_name(session_rank(g)),62,89,3,gold);
+    } else if (g->paused) {
+        rectangle(39,43,441,231,COLOR(18,32,42));
+        rectangle(39,43,441,47,mint);
+        heading("PARK CHALLENGES",57,56,2,ink);
+    }
+}
+
+static void interface(const SkateSession *g, int menu_selection)
+{
+    const Skater *s = &g->skater;
+    unsigned int ink = COLOR(241,244,234), mint = COLOR(98,216,181), gold = COLOR(255,204,100);
+    char line[80];
+    int i;
+    if (g->state == GAME_MENU) {
+        text_at(2,1,mint,"FOUNDRY YARD / ARCADE SKATING");
+        text_at(4,17,menu_selection == 0 ? gold : ink,"2 MINUTE SCORE RUN");
+        text_at(4,20,menu_selection == 1 ? gold : ink,"FREE SKATE");
+        snprintf(line,sizeof(line),"RECORD SCORE %d",g->records.best_score);
+        text_at(4,23,ink,line);
+        snprintf(line,sizeof(line),"BEST COMBO %d",g->records.best_combo);
+        text_at(4,25,mint,line);
+        text_at(2,31,ink,"UP/DOWN CHOOSE   X OR START PLAY");
+        return;
+    }
+    if (g->state == GAME_RESULTS) {
+        text_at(2,1,mint,"SIDEWALK SESSIONS / FOUNDRY YARD");
+        text_at(9,9,ink,g->mode == MODE_SCORE ? "SCORE RUN COMPLETE" : "SESSION COMPLETE");
+        snprintf(line,sizeof(line),"SCORE %d     BEST COMBO %d",s->total_score,s->best_combo);
+        text_at(9,15,ink,line);
+        snprintf(line,sizeof(line),"CHALLENGES %d/5     SPOTS %d/5",session_count(g->goals),session_count(g->spots));
+        text_at(9,18,mint,line);
+        snprintf(line,sizeof(line),"KICKFLIPS %d   GRIND %.1fs   BAILS %d",s->landed_flips,s->landed_grind_time,s->bails);
+        text_at(9,21,ink,line);
+        snprintf(line,sizeof(line),"PERSONAL RECORD %d",g->records.best_score);
+        text_at(9,24,gold,line);
+        if (g->save_status < 0) text_at(9,27,COLOR(255,135,107),"RECORDS COULD NOT BE SAVED");
+        else text_at(9,27,mint,"PERSONAL RECORDS SAVED");
+        text_at(2,31,ink,"X TRY AGAIN   O OR START MAIN MENU");
+        return;
+    }
+    if (g->mode == MODE_SCORE) {
+        int seconds = (int)ceilf(g->remaining);
+        snprintf(line,sizeof(line),"TIME %02d:%02d   SCORE %d   RECORD %d",seconds/60,seconds%60,s->total_score,g->records.best_score);
+    } else snprintf(line,sizeof(line),"FREE SKATE   SCORE %d   BEST COMBO %d",s->total_score,s->best_combo);
+    text_at(1,0,ink,line);
+    snprintf(line,sizeof(line),"GOALS %d/5  SPOTS %d/5  COMBO %d x %d",session_count(g->goals),session_count(g->spots),s->combo_points,s->combo_tricks);
+    text_at(1,1,mint,line);
+    if (g->state == GAME_FINISHING) text_at(1,3,gold,"TIME UP - LAND YOUR CURRENT COMBO");
+    else if (s->notice_time > 0.0f) text_at(1,3,gold,s->notice);
+    if (g->paused) {
+        for (i=0;i<GOAL_COUNT;i++) {
+            char progress[24];
+            int done = !!(g->goals & (1u << i));
+            snprintf(line,sizeof(line),"%s %s",done ? "+" : "-",session_goal_name(i));
+            text_at(7,10+i*3,done ? mint : ink,line);
+            session_goal_progress(g,i,progress,sizeof(progress));
+            text_at(43,11+i*3,gold,progress);
+        }
+        text_at(2,31,ink,"START RESUME   TRIANGLE END RUN   SELECT RESPAWN");
+    } else {
+        text_at(1,30,ink,"X PUSH/POP  [] FLIP  O GRAB  /\\ GRIND  L/R SPIN");
+        text_at(1,32,ink,"STICK STEER  DOWN BRAKE  START GOALS  SELECT RESET");
+    }
 }
 
 void render_init(void)
@@ -172,24 +323,27 @@ void render_reset_camera(void)
     camera_ready = 0;
 }
 
-void render_frame(const Skater *s, int paused, float dt)
+void render_frame(const SkateSession *game, int menu_selection, float dt)
 {
+    const Skater *s = &game->skater;
     float alpha = fminf(1.0f,dt*5.0f);
-    Vec target = vec(s->x,s->y+0.85f,s->z+0.8f);
+    Vec target;
     Vec up = vec(0,1,0), desired;
+    animation_time += dt;
     if (!camera_ready) {
         camera_heading = s->heading;
-        camera = vec(s->x,4.5f,s->z-7.0f);
+        camera = vec(s->x-sinf(s->heading)*6.0f,s->y+3.8f,s->z-cosf(s->heading)*6.0f);
         camera_ready = 1;
     }
     camera_heading += skate_wrap_angle(s->heading-camera_heading)*alpha;
-    desired = vec(s->x-sinf(camera_heading)*7.0f,s->y+4.5f,s->z-cosf(camera_heading)*7.0f);
+    desired = vec(s->x-sinf(camera_heading)*6.0f,s->y+3.8f,s->z-cosf(camera_heading)*6.0f);
+    target = vec(s->x+sinf(camera_heading),s->y+0.9f,s->z+cosf(camera_heading));
     camera.x += (desired.x-camera.x)*alpha;
     camera.y += (desired.y-camera.y)*alpha;
     camera.z += (desired.z-camera.z)*alpha;
 
     sceGuStart(GU_DIRECT,command_list);
-    sceGuClearColor(COLOR(114,160,190));
+    sceGuClearColor(COLOR(160,195,202));
     sceGuClearDepth(0);
     sceGuClear(GU_COLOR_BUFFER_BIT | GU_DEPTH_BUFFER_BIT);
     sceGuEnable(GU_DEPTH_TEST);
@@ -202,36 +356,18 @@ void render_frame(const Skater *s, int paused, float dt)
     sceGumMatrixMode(GU_MODEL);
     sceGumLoadIdentity();
     park();
+    spots(game);
     skater(s);
     sceGuDisable(GU_DEPTH_TEST);
     panel(0,35);
     panel(238,272);
-    if (paused) panel(112,155);
+    overlay(game,menu_selection);
     sceGuFinish();
     sceGuSync(0,0);
 
     pspDebugScreenSetOffset((int)(uintptr_t)draw_buffer);
     pspDebugScreenEnableBackColor(0);
-    pspDebugScreenSetTextColor(COLOR(244,247,251));
-    pspDebugScreenSetXY(1,0);
-    pspDebugScreenPrintf("SKATE LAB   SCORE %d   BEST %d",s->total_score,s->best_combo);
-    pspDebugScreenSetXY(1,1);
-    pspDebugScreenPrintf("SPEED %2.0f   COMBO %d x %d   LAST %d",s->speed,s->combo_points,s->combo_tricks,s->last_score);
-    pspDebugScreenSetTextColor(COLOR(255,204,100));
-    pspDebugScreenSetXY(1,3);
-    if (s->notice_time > 0.0f) pspDebugScreenPrintf("%s",s->notice);
-    pspDebugScreenSetTextColor(COLOR(207,221,232));
-    pspDebugScreenSetXY(1,30);
-    pspDebugScreenPrintf("X PUSH/RELEASE OLLIE  [] FLIP  O GRAB  /\\ GRIND");
-    pspDebugScreenSetXY(1,32);
-    pspDebugScreenPrintf("STICK STEER  DOWN BRAKE  L/R SPIN  START PAUSE");
-    if (paused) {
-        pspDebugScreenSetTextColor(COLOR(255,204,100));
-        pspDebugScreenSetXY(24,15);
-        pspDebugScreenPrintf("PAUSED");
-        pspDebugScreenSetXY(13,17);
-        pspDebugScreenPrintf("START RESUME / SELECT RESPAWN");
-    }
+    interface(game,menu_selection);
     sceDisplayWaitVblankStart();
     draw_buffer = sceGuSwapBuffers();
 }

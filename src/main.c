@@ -1,5 +1,5 @@
 #include "render.h"
-#include "skate.h"
+#include "session.h"
 #include <math.h>
 #include <pspctrl.h>
 #include <pspkernel.h>
@@ -9,11 +9,16 @@
 #include <stdio.h>
 #endif
 
-PSP_MODULE_INFO("SkateLab",0,0,1);
+PSP_MODULE_INFO("SidewalkSessions",0,0,2);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 PSP_HEAP_SIZE_KB(8*1024);
 
 static volatile int running = 1;
+#ifdef SKATE_SMOKE_TEST
+#define RECORDS_PATH "sidewalk-smoke-records.dat"
+#else
+#define RECORDS_PATH "sidewalk-records.dat"
+#endif
 
 static int exit_callback(int arg1, int arg2, void *common)
 {
@@ -74,11 +79,12 @@ static void smoke_pad(SceCtrlData *pad, unsigned int frame)
 
 int main(void)
 {
-    Skater skater;
+    SkateSession game;
+    PlayerRecords records;
     unsigned int previous_buttons = 0;
     u64 previous_tick;
     float accumulator = 0.0f;
-    int paused = 0;
+    int menu_selection = 0;
     const float fixed_dt = 1.0f/120.0f;
 #ifdef SKATE_SMOKE_TEST
     unsigned int smoke_frame = 0;
@@ -87,7 +93,8 @@ int main(void)
     scePowerSetClockFrequency(333,333,166);
     sceCtrlSetSamplingCycle(0);
     sceCtrlSetSamplingMode(PSP_CTRL_MODE_ANALOG);
-    skate_init(&skater);
+    records_load(RECORDS_PATH,&records);
+    session_init(&game,&records);
     render_init();
     sceRtcGetCurrentTick(&previous_tick);
     while (running) {
@@ -96,6 +103,7 @@ int main(void)
         u64 tick;
         float elapsed;
         unsigned int pressed;
+        GameState before;
         sceCtrlPeekBufferPositive(&pad,1);
 #ifdef SKATE_SMOKE_TEST
         smoke_pad(&pad,smoke_frame);
@@ -107,31 +115,60 @@ int main(void)
         pressed = pad.Buttons & ~previous_buttons;
         previous_buttons = pad.Buttons;
         input = input_from_pad(&pad);
-        if (pressed & PSP_CTRL_START) {
-            paused = !paused;
-            accumulator = 0.0f;
-            skater.previous = input;
-        }
-        if (pressed & PSP_CTRL_SELECT) {
-            skate_respawn(&skater);
-            render_reset_camera();
-            skater.previous = input;
-        }
-        if (!paused) {
-            accumulator += elapsed;
-            while (accumulator >= fixed_dt) {
-                skate_step(&skater,&input,fixed_dt);
-                accumulator -= fixed_dt;
+        before = game.state;
+        if (game.state == GAME_MENU) {
+            if (pressed & (PSP_CTRL_UP | PSP_CTRL_DOWN)) menu_selection = !menu_selection;
+            if (pressed & (PSP_CTRL_CROSS | PSP_CTRL_START)) {
+                session_start(&game,menu_selection ? MODE_FREE : MODE_SCORE);
+                game.skater.previous = input;
+                render_reset_camera();
+                accumulator = 0.0f;
             }
+        } else if (game.state == GAME_RESULTS) {
+            if (pressed & PSP_CTRL_CROSS) {
+                session_start(&game,game.mode);
+                game.skater.previous = input;
+                render_reset_camera();
+                accumulator = 0.0f;
+            } else if (pressed & (PSP_CTRL_CIRCLE | PSP_CTRL_START)) {
+                session_menu(&game);
+                render_reset_camera();
+            }
+        } else {
+            if (pressed & PSP_CTRL_START) {
+                game.paused = !game.paused;
+                accumulator = 0.0f;
+                game.skater.previous = input;
+            }
+            if (pressed & PSP_CTRL_SELECT) {
+                session_respawn(&game);
+                render_reset_camera();
+                game.skater.previous = input;
+            }
+            if (game.paused && (pressed & PSP_CTRL_TRIANGLE)) session_finish(&game);
         }
-        render_frame(&skater,paused,elapsed);
+#ifdef SKATE_SMOKE_TEST
+        /* Fast-forward the score-run clock after the normal gameplay sequence. */
+        if (smoke_frame == 285 && game.state == GAME_RUNNING) game.remaining = 0.05f;
+#endif
+        accumulator += elapsed;
+        while (accumulator >= fixed_dt) {
+            session_step(&game,&input,fixed_dt);
+            accumulator -= fixed_dt;
+        }
+        if (game.state == GAME_RESULTS && before != GAME_RESULTS)
+            game.save_status = records_save(RECORDS_PATH,&game.records) ? 1 : -1;
+        render_frame(&game,menu_selection,elapsed);
 #ifdef SKATE_SMOKE_TEST
         smoke_frame++;
         if (smoke_frame == 300) {
-            int passed = skater.total_score >= 400 && skater.best_combo >= 400 &&
-                skater.z == -12.0f && !skater.airborne && !paused;
+            PlayerRecords saved;
+            int passed = game.state == GAME_RESULTS && game.skater.total_score >= 400 &&
+                game.skater.landed_flips >= 1 && (game.goals & (1u << 1)) &&
+                game.skater.z == -12.0f && !game.paused && game.save_status == 1 &&
+                records_load(RECORDS_PATH,&saved) && saved.best_score >= game.skater.total_score;
             printf("SKATE_SMOKE_%s frames=%u score=%d best=%d\n",
-                passed ? "OK" : "FAIL",smoke_frame,skater.total_score,skater.best_combo);
+                passed ? "OK" : "FAIL",smoke_frame,game.skater.total_score,game.records.best_score);
             running = 0;
         }
 #endif

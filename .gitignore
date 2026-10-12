@@ -5,3 +5,9 @@ dist/
 *.prx
 *.PBP
 PARAM.SFO
+sidewalk-records.dat
+sidewalk-records.dat.tmp
+sidewalk-records.dat.bak
+sidewalk-smoke-records.dat
+sidewalk-smoke-records.dat.tmp
+sidewalk-smoke-records.dat.bak

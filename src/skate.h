@@ -15,9 +15,11 @@ typedef struct {
 typedef struct {
     float x, y, z, heading, speed, vertical_speed;
     float crouch, ground_velocity, spin, flip_remaining, flip_angle;
-    float grind_points, grab_time, stun, notice_time;
+    float grind_points, grind_time, grab_time, stun, notice_time;
     int airborne, grinding, flips, grab_counted;
     int combo_points, combo_tricks, total_score, best_combo, last_score;
+    int landed_flips, landed_grabs, landed_spins, landed_combos, bails;
+    float landed_grind_time;
     char notice[32];
     SkateInput previous;
 } Skater;

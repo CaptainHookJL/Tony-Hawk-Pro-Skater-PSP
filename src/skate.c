@@ -43,26 +43,34 @@ static void clear_combo(Skater *s)
     s->grab_time = 0.0f;
     s->grab_counted = 0;
     s->grind_points = 0.0f;
+    s->grind_time = 0.0f;
 }
 
 void skate_init(Skater *s)
 {
     memset(s, 0, sizeof(*s));
     s->z = -12.0f;
-    notice(s, "SKATE LAB - HOLD X TO PUSH");
+    notice(s, "HOLD X TO PUSH - RELEASE TO POP");
 }
 
 void skate_respawn(Skater *s)
 {
-    int total = s->total_score, best = s->best_combo;
+    Skater old = *s;
     skate_init(s);
-    s->total_score = total;
-    s->best_combo = best;
+    s->total_score = old.total_score;
+    s->best_combo = old.best_combo;
+    s->landed_flips = old.landed_flips;
+    s->landed_grabs = old.landed_grabs;
+    s->landed_spins = old.landed_spins;
+    s->landed_combos = old.landed_combos;
+    s->landed_grind_time = old.landed_grind_time;
+    s->bails = old.bails;
     notice(s, "RESPAWNED");
 }
 
 static void bail(Skater *s)
 {
+    s->bails++;
     clear_combo(s);
     s->airborne = s->grinding = 0;
     s->speed = s->vertical_speed = s->ground_velocity = s->crouch = 0.0f;
@@ -87,7 +95,7 @@ static void land(Skater *s, float ground)
     int half_turns = (int)roundf(s->spin / SKATE_PI);
     float alignment_error = fabsf(s->spin - (float)half_turns * SKATE_PI);
     s->y = ground;
-    if (s->flip_remaining > 0.05f || alignment_error > 0.65f) {
+    if (s->flip_remaining > 0.0f || alignment_error > 0.65f) {
         bail(s);
         return;
     }
@@ -98,6 +106,11 @@ static void land(Skater *s, float ground)
     }
     s->last_score = s->combo_points * s->combo_tricks;
     s->total_score += s->last_score;
+    s->landed_flips += s->flips;
+    s->landed_grabs += s->grab_counted;
+    s->landed_spins += half_turns < 0 ? -half_turns : half_turns;
+    s->landed_grind_time += s->grind_time;
+    if (s->last_score > 0) s->landed_combos++;
     if (s->last_score > s->best_combo) s->best_combo = s->last_score;
     notice(s, s->last_score > 0 ? "LANDED - COMBO BANKED" : "LANDED");
     s->airborne = s->grinding = 0;
@@ -129,6 +142,7 @@ void skate_step(Skater *s, const SkateInput *in, float dt)
             s->speed = fmaxf(2.5f, s->speed - 0.35f * dt);
             s->z += cosf(s->heading) * s->speed * dt;
             s->grind_points += 250.0f * dt;
+            s->grind_time += dt;
             while (s->grind_points >= 1.0f) {
                 s->combo_points++;
                 s->grind_points -= 1.0f;
